@@ -17,8 +17,6 @@ BOT_TOKEN = os.getenv("BOT_TOKEN", "")
 MONGO_URI = os.getenv("MONGO_URI", "")
 DB_NAME = os.getenv("DB_NAME", "MovieBot")
 
-CHANNEL_ID = int(os.getenv("BIN_CHANNEL", "0"))
-
 PHOTO_URL = "https://i.postimg.cc/XJycncFq/Picsart-26-05-01-12-48-36-061.png"
 
 # ================= VALIDATION =================
@@ -66,9 +64,9 @@ async def start(client, message):
 👋 Hi {message.from_user.first_name}
 
 ━━━━━━━━━━━━━━━
-🎬 Movies | 🎵 Songs | 📺 Bechelor Point | 🔥 Trending
+🎬 Movies | 🎵 Songs | 📺 Bachelor Point
 
-🔎 Search your favourite movie or song
+🔎 Search your favourite movie or series
 """
 
     buttons = InlineKeyboardMarkup([
@@ -77,10 +75,7 @@ async def start(client, message):
             InlineKeyboardButton("🎵 Songs", callback_data="songs")
         ],
         [
-            InlineKeyboardButton("📺 Bechelor Point", callback_data="bechelor")
-        ],
-        [
-            InlineKeyboardButton("🔥 Trending", callback_data="trending")
+            InlineKeyboardButton("📺 Bachelor Point", callback_data="bechelor")
         ]
     ])
 
@@ -91,48 +86,25 @@ async def start(client, message):
     )
 
 # ================= SAVE CONTENT =================
-@bot.on_message(filters.channel & filters.chat(CHANNEL_ID))
+@bot.on_message(filters.channel)
 async def save_content(client, message):
 
     try:
 
+        print("📥 New Channel Post")
+
         file_id = None
 
-        # VIDEO
+        # ===== VIDEO =====
         if message.video:
             file_id = message.video.file_id
 
-        # DOCUMENT
+        # ===== DOCUMENT =====
         elif message.document:
             file_id = message.document.file_id
 
-        caption = (message.caption or "").lower()
-
-        # ===== SAVE VIDEO =====
-        if file_id:
-
-            # ===== BECHELOR POINT =====
-            if "#bechelor" in caption:
-
-                await bechelor.insert_one({
-                    "name": message.caption or "Bechelor Point",
-                    "file_id": file_id
-                })
-
-                print(f"📺 Saved Bechelor: {message.caption}")
-
-            # ===== MOVIES =====
-            else:
-
-                await movies.insert_one({
-                    "name": message.caption or "Unknown Movie",
-                    "file_id": file_id
-                })
-
-                print(f"🎬 Saved Movie: {message.caption}")
-
         # ===== AUDIO =====
-        if message.audio:
+        elif message.audio:
 
             title = message.caption or message.audio.title or "Unknown Song"
 
@@ -142,6 +114,33 @@ async def save_content(client, message):
             })
 
             print(f"🎵 Saved Song: {title}")
+            return
+
+        # ===== NO FILE =====
+        if not file_id:
+            return
+
+        caption = (message.caption or "").lower()
+
+        # ===== BACHELOR POINT =====
+        if "#bachelor" in caption:
+
+            await bechelor.insert_one({
+                "name": message.caption or "Bachelor Point",
+                "file_id": file_id
+            })
+
+            print(f"📺 Saved Bachelor Point: {message.caption}")
+
+        # ===== MOVIES =====
+        else:
+
+            await movies.insert_one({
+                "name": message.caption or "Unknown Movie",
+                "file_id": file_id
+            })
+
+            print(f"🎬 Saved Movie: {message.caption}")
 
     except Exception as e:
         print("SAVE ERROR:", e)
@@ -157,10 +156,10 @@ async def callback(client, query):
         # ===== HOME =====
         if data == "home":
 
-            text = f"""
+            text = """
 🍿 NETFLIX HUB
 
-🎬 Movies | 🎵 Songs | 📺 Bechelor Point | 🔥 Trending
+🎬 Movies | 🎵 Songs | 📺 Bachelor Point
 """
 
             buttons = InlineKeyboardMarkup([
@@ -169,10 +168,7 @@ async def callback(client, query):
                     InlineKeyboardButton("🎵 Songs", callback_data="songs")
                 ],
                 [
-                    InlineKeyboardButton("📺 Bechelor Point", callback_data="bechelor")
-                ],
-                [
-                    InlineKeyboardButton("🔥 Trending", callback_data="trending")
+                    InlineKeyboardButton("📺 Bachelor Point", callback_data="bechelor")
                 ]
             ])
 
@@ -184,7 +180,7 @@ async def callback(client, query):
         # ===== MOVIES LIST =====
         elif data == "movies":
 
-            data_list = await movies.find().to_list(length=10)
+            data_list = await movies.find().to_list(length=20)
 
             buttons = []
             row = []
@@ -217,7 +213,7 @@ async def callback(client, query):
         # ===== SONGS LIST =====
         elif data == "songs":
 
-            data_list = await songs.find().to_list(length=10)
+            data_list = await songs.find().to_list(length=20)
 
             buttons = []
             row = []
@@ -247,10 +243,10 @@ async def callback(client, query):
                 reply_markup=InlineKeyboardMarkup(buttons)
             )
 
-        # ===== BECHELOR LIST =====
+        # ===== BACHELOR POINT LIST =====
         elif data == "bechelor":
 
-            data_list = await bechelor.find().to_list(length=10)
+            data_list = await bechelor.find().to_list(length=20)
 
             buttons = []
             row = []
@@ -259,7 +255,7 @@ async def callback(client, query):
 
                 row.append(
                     InlineKeyboardButton(
-                        b.get("name", "Bechelor")[:18],
+                        b.get("name", "Bachelor")[:18],
                         callback_data=f"bechelor_{str(b['_id'])}"
                     )
                 )
@@ -276,28 +272,8 @@ async def callback(client, query):
             ])
 
             await query.message.edit_media(
-                InputMediaPhoto(PHOTO_URL, "📺 Bechelor Point"),
+                InputMediaPhoto(PHOTO_URL, "📺 Bachelor Point"),
                 reply_markup=InlineKeyboardMarkup(buttons)
-            )
-
-        # ===== TRENDING =====
-        elif data == "trending":
-
-            text = """
-🔥 Trending Now
-
-• Pushpa 2
-• Leo
-• Animal
-• Salaar
-• KGF 2
-"""
-
-            await query.message.edit_media(
-                InputMediaPhoto(PHOTO_URL, text),
-                reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("🔙 Back", callback_data="home")]
-                ])
             )
 
         # ===== PLAY MOVIE =====
@@ -330,7 +306,7 @@ async def callback(client, query):
                 print(e)
                 await query.message.reply_text("❌ Movie error")
 
-        # ===== PLAY BECHELOR =====
+        # ===== PLAY BACHELOR =====
         elif data.startswith("bechelor_"):
 
             try:
@@ -358,7 +334,7 @@ async def callback(client, query):
 
             except Exception as e:
                 print(e)
-                await query.message.reply_text("❌ Bechelor error")
+                await query.message.reply_text("❌ Bachelor error")
 
         # ===== PLAY SONG =====
         elif data.startswith("song_"):
@@ -411,7 +387,7 @@ async def search_movie(client, message):
 
         return
 
-    # ===== SEARCH BECHELOR =====
+    # ===== SEARCH BACHELOR =====
     bechelor_result = await bechelor.find_one({
         "name": {
             "$regex": name,
