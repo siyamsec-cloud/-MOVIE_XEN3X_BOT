@@ -88,7 +88,7 @@ Just send movie name 👇
             [
                 InlineKeyboardButton(
                     "🔥 Updates Channel",
-                    url="https://t.me/moviexen3x"
+                    url="https://t.me/"
                 )
             ]
         ]
