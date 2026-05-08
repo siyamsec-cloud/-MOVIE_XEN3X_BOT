@@ -1,5 +1,7 @@
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from flask import Flask
+from threading import Thread
 import os
 
 API_ID = int(os.getenv("API_ID"))
@@ -12,6 +14,19 @@ bot = Client(
     api_hash=API_HASH,
     bot_token=BOT_TOKEN
 )
+
+app = Flask('')
+
+@app.route('/')
+def home():
+    return "Bot is running!"
+
+def run():
+    app.run(host='0.0.0.0', port=10000)
+
+def keep_alive():
+    t = Thread(target=run)
+    t.start()
 
 @bot.on_message(filters.command("start"))
 async def start(client, message):
@@ -51,4 +66,7 @@ async def search_movie(client, message):
     )
 
 print("Bot Started...")
+
+keep_alive()
+
 bot.run()
