@@ -21,6 +21,8 @@ mongo = AsyncIOMotorClient(MONGO_URI)
 db = mongo[DB_NAME]
 movies = db.movies
 
+print("Mongo Connected!")
+
 # ================= BOT =================
 bot = Client(
     "MovieBot",
@@ -42,7 +44,7 @@ def run():
 def keep_alive():
     Thread(target=run).start()
 
-# ================= START COMMAND (REPLACED) =================
+# ================= START COMMAND =================
 @bot.on_message(filters.command("start"))
 async def start(client, message):
     text = f"""
@@ -84,7 +86,7 @@ Just send movie name 👇
             [
                 InlineKeyboardButton(
                     "🔥 Updates Channel",
-                    url="https://t.me/YOUR_CHANNEL"
+                    url="https://t.me/moviexen3x"
                 )
             ]
         ]
@@ -95,6 +97,8 @@ Just send movie name 👇
 # ================= SAVE FROM CHANNEL =================
 @bot.on_message(filters.channel)
 async def save_movie(client, message):
+    print(message)
+
     if message.video:
         name = message.caption or "Unknown"
 
