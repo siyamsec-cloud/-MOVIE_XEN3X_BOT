@@ -2,6 +2,7 @@ import asyncio
 asyncio.set_event_loop(asyncio.new_event_loop())
 
 import os
+from bson import ObjectId
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, InputMediaPhoto
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -47,19 +48,18 @@ def run():
 def keep_alive():
     Thread(target=run).start()
 
-# ================= START MENU =================
+# ================= START (HOME UI) =================
 @bot.on_message(filters.command("start"))
 async def start(client, message):
 
     text = f"""
-🍿 MOVIE HUB | XEN3X
+🍿 NETFLIX MOVIE HUB
 
 👋 Hi {message.from_user.first_name}
 
 ━━━━━━━━━━━━━━━
-🎬 Welcome to Netflix-style Movie Bot
-
-✨ Choose your category below:
+🎬 Browse unlimited movies
+🔥 Trending & Latest updates
 """
 
     buttons = InlineKeyboardMarkup(
@@ -69,7 +69,6 @@ async def start(client, message):
                 InlineKeyboardButton("🔥 Trending", callback_data="trending")
             ],
             [
-                InlineKeyboardButton("⭐ Web Series", callback_data="series"),
                 InlineKeyboardButton("🎭 Genres", callback_data="genres")
             ],
             [
@@ -89,14 +88,13 @@ async def start(client, message):
 async def save_movie(client, message):
 
     if message.video:
-        name = message.caption or "Unknown"
 
         await movies.insert_one({
-            "name": name,
+            "name": message.caption or "Unknown",
             "file_id": message.video.file_id
         })
 
-        print(f"Saved movie: {name}")
+        print("Movie saved")
 
 # ================= SEARCH =================
 @bot.on_message(filters.private & filters.text)
@@ -123,15 +121,12 @@ async def callback(client, callback_query):
 
     data = callback_query.data
 
-    # ===== HOME BACK =====
-    if data == "back":
+    # ================= HOME =================
+    if data == "home":
 
-        text = f"""
-🍿 MOVIE HUB | XEN3X
+        text = """
+🍿 NETFLIX MOVIE HUB
 
-👋 Welcome back {callback_query.from_user.first_name}
-
-━━━━━━━━━━━━━━━
 🎬 Choose category
 """
 
@@ -142,7 +137,6 @@ async def callback(client, callback_query):
                     InlineKeyboardButton("🔥 Trending", callback_data="trending")
                 ],
                 [
-                    InlineKeyboardButton("⭐ Web Series", callback_data="series"),
                     InlineKeyboardButton("🎭 Genres", callback_data="genres")
                 ],
                 [
@@ -156,21 +150,20 @@ async def callback(client, callback_query):
             reply_markup=buttons
         )
 
-    # ===== DEVELOPER =====
+    # ================= DEVELOPER =================
     elif data == "developer":
 
         text = """
 👨‍💻 Developer Info
 
 ━━━━━━━━━━━━━━━
-🧑 Name: MUHAMMAD SIYAM
-🎬 Bot: MOVIE | XEN3X
-⚡ Powered By Pyrogram
-━━━━━━━━━━━━━━━
+🧑 MUHAMMAD SIYAM
+🎬 MOVIE BOT XEN3X
+⚡ Pyrogram Powered
 """
 
         buttons = InlineKeyboardMarkup(
-            [[InlineKeyboardButton("🔙 Back", callback_data="back")]]
+            [[InlineKeyboardButton("🔙 Back", callback_data="home")]]
         )
 
         await callback_query.message.edit_media(
@@ -178,66 +171,73 @@ async def callback(client, callback_query):
             reply_markup=buttons
         )
 
-    # ===== MOVIES MENU =====
+    # ================= MOVIES GRID =================
     elif data == "movies":
 
         text = """
-🎬 MOVIES LIBRARY
+🎬 MOVIE LIBRARY
 
-━━━━━━━━━━━━━━━
-Choose category 🍿
+👇 Select a movie
 """
 
-        buttons = InlineKeyboardMarkup(
-            [
-                [
-                    InlineKeyboardButton("🔥 Latest", callback_data="latest"),
-                    InlineKeyboardButton("⭐ Top Rated", callback_data="top")
-                ],
-                [
-                    InlineKeyboardButton("🇮🇳 Bollywood", callback_data="bollywood"),
-                    InlineKeyboardButton("🌍 Hollywood", callback_data="hollywood")
-                ],
-                [
-                    InlineKeyboardButton("🔙 Back", callback_data="back")
-                ]
-            ]
-        )
+        all_movies = await movies.find().to_list(length=10)
+
+        buttons = []
+        row = []
+
+        for m in all_movies:
+            row.append(
+                InlineKeyboardButton(
+                    m["name"][:18],
+                    callback_data=f"movie_{m['_id']}"
+                )
+            )
+
+            if len(row) == 2:
+                buttons.append(row)
+                row = []
+
+        if row:
+            buttons.append(row)
+
+        buttons.append([
+            InlineKeyboardButton("🔙 Back", callback_data="home")
+        ])
 
         await callback_query.message.edit_media(
             media=InputMediaPhoto(PHOTO_URL, caption=text),
-            reply_markup=buttons
+            reply_markup=InlineKeyboardMarkup(buttons)
         )
 
-    # ===== TRENDING =====
+    # ================= TRENDING =================
     elif data == "trending":
 
-        text = """
-🔥 TRENDING NOW
+        latest = await movies.find().limit(6).to_list(length=6)
 
-━━━━━━━━━━━━━━━
-Most watched movies 🍿
-"""
+        text = "🔥 TRENDING MOVIES"
 
-        buttons = InlineKeyboardMarkup(
+        buttons = [
             [
-                [InlineKeyboardButton("🎬 View List", callback_data="latest")],
-                [InlineKeyboardButton("🔙 Back", callback_data="back")]
+                InlineKeyboardButton(m["name"][:18], callback_data=f"movie_{m['_id']}")
             ]
-        )
+            for m in latest
+        ]
+
+        buttons.append([
+            InlineKeyboardButton("🔙 Back", callback_data="home")
+        ])
 
         await callback_query.message.edit_media(
             media=InputMediaPhoto(PHOTO_URL, caption=text),
-            reply_markup=buttons
+            reply_markup=InlineKeyboardMarkup(buttons)
         )
 
-    # ===== GENRES =====
+    # ================= GENRES =================
     elif data == "genres":
 
         text = """
-🎭 MOVIE GENRES
+🎭 GENRES
 
-━━━━━━━━━━━━━━━
 Pick your mood 🍿
 """
 
@@ -252,7 +252,7 @@ Pick your mood 🍿
                     InlineKeyboardButton("😱 Thriller", callback_data="thriller")
                 ],
                 [
-                    InlineKeyboardButton("🔙 Back", callback_data="back")
+                    InlineKeyboardButton("🔙 Back", callback_data="home")
                 ]
             ]
         )
@@ -262,24 +262,19 @@ Pick your mood 🍿
             reply_markup=buttons
         )
 
-    # ===== PLACEHOLDER CATEGORIES =====
-    elif data in ["latest", "top", "bollywood", "hollywood", "action", "comedy", "romance", "thriller", "series"]:
+    # ================= OPEN MOVIE =================
+    elif data.startswith("movie_"):
 
-        text = f"""
-🍿 {data.upper()} MOVIES
+        movie_id = data.split("_")[1]
 
-━━━━━━━━━━━━━━━
-Coming soon auto filter system...
-"""
+        movie = await movies.find_one({"_id": ObjectId(movie_id)})
 
-        buttons = InlineKeyboardMarkup(
-            [[InlineKeyboardButton("🔙 Back", callback_data="back")]]
-        )
+        if movie:
 
-        await callback_query.message.edit_media(
-            media=InputMediaPhoto(PHOTO_URL, caption=text),
-            reply_markup=buttons
-        )
+            await callback_query.message.reply_video(
+                movie["file_id"],
+                caption=f"🎬 {movie['name']}"
+            )
 
 # ================= START BOT =================
 print("Bot Started...")
