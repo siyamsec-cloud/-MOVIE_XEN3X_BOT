@@ -1,4 +1,3 @@
-
 import asyncio
 
 asyncio.set_event_loop(asyncio.new_event_loop())
@@ -62,7 +61,7 @@ Examples:
         reply_markup=buttons
     )
 
-@bot.on_message(filters.text & ~filters.command(["start"]))
+@bot.on_message(filters.text & ~filters.bot & ~filters.command(["start"]))
 async def search_movie(client, message):
     movie_name = message.text
 
