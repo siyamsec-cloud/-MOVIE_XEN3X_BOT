@@ -75,24 +75,9 @@ async def start(client, message):
 
     buttons = InlineKeyboardMarkup(
         [
-            [
-                InlineKeyboardButton(
-                    "👨‍💻 Developer Info",
-                    callback_data="developer"
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    "🎬 Upcoming Movies",
-                    callback_data="upcoming"
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    "🔥 Updates Channel",
-                    url="https://t.me/moviexen3x"
-                )
-            ]
+            [InlineKeyboardButton("👨‍💻 Developer Info", callback_data="developer")],
+            [InlineKeyboardButton("🎬 Upcoming Movies", callback_data="upcoming")],
+            [InlineKeyboardButton("🔥 Updates Channel", url="https://t.me/moviexen3x")]
         ]
     )
 
@@ -138,9 +123,7 @@ async def search_movie(client, message):
         )
 
     else:
-        await message.reply_text(
-            f"😔 No movie found for: {movie_name}"
-        )
+        await message.reply_text("😔 No movie found")
 
 # ================= CALLBACK =================
 @bot.on_callback_query()
@@ -162,21 +145,11 @@ async def callback(client, callback_query):
 """
 
         buttons = InlineKeyboardMarkup(
-            [
-                [
-                    InlineKeyboardButton(
-                        "🔙 Back",
-                        callback_data="back"
-                    )
-                ]
-            ]
+            [[InlineKeyboardButton("🔙 Back", callback_data="back")]]
         )
 
         await callback_query.message.edit_media(
-            media=InputMediaPhoto(
-                PHOTO_URL,
-                caption=text
-            ),
+            media=InputMediaPhoto(PHOTO_URL, caption=text),
             reply_markup=buttons
         )
 
@@ -188,26 +161,19 @@ async def callback(client, callback_query):
 
 ━━━━━━━━━━━━━━━
 • DHURANDHAR
-• Leo
+• LEO
 • SITA RAM
-• Salaar
+• SALAAR
 • MAALIK
 ━━━━━━━━━━━━━━━
 """
 
         buttons = InlineKeyboardMarkup(
-            [
-                [
-                    InlineKeyboardButton(
-                        "🔙 Back",
-                        callback_data="back"
-                    )
-                ]
-            ]
+            [[InlineKeyboardButton("🔙 Back", callback_data="back")]]
         )
 
-        await callback_query.message.edit_caption(
-            caption=text,
+        await callback_query.message.edit_media(
+            media=InputMediaPhoto(PHOTO_URL, caption=text),
             reply_markup=buttons
         )
 
@@ -234,32 +200,14 @@ async def callback(client, callback_query):
 
         buttons = InlineKeyboardMarkup(
             [
-                [
-                    InlineKeyboardButton(
-                        "👨‍💻 Developer Info",
-                        callback_data="developer"
-                    )
-                ],
-                [
-                    InlineKeyboardButton(
-                        "🎬 Upcoming Movies",
-                        callback_data="upcoming"
-                    )
-                ],
-                [
-                    InlineKeyboardButton(
-                        "🔥 Updates Channel",
-                        url="https://t.me/moviexen3x"
-                    )
-                ]
+                [InlineKeyboardButton("👨‍💻 Developer Info", callback_data="developer")],
+                [InlineKeyboardButton("🎬 Upcoming Movies", callback_data="upcoming")],
+                [InlineKeyboardButton("🔥 Updates Channel", url="https://t.me/moviexen3x")]
             ]
         )
 
         await callback_query.message.edit_media(
-            media=InputMediaPhoto(
-                PHOTO_URL,
-                caption=text
-            ),
+            media=InputMediaPhoto(PHOTO_URL, caption=text),
             reply_markup=buttons
         )
 
