@@ -18,12 +18,14 @@ MONGO_URI = os.getenv("MONGO_URI")
 DB_NAME = os.getenv("DB_NAME", "MovieBot")
 CHANNEL_ID = int(os.getenv("BIN_CHANNEL"))
 
+# 👉 এখানে তোমার PHOTO CHANGE হবে
 PHOTO_URL = "https://i.postimg.cc/XJycncFq/Picsart-26-05-01-12-48-36-061.png"
 
 # ================= MONGO =================
 mongo = AsyncIOMotorClient(MONGO_URI)
 db = mongo[DB_NAME]
 movies = db.movies
+songs = db.songs
 
 print("Mongo Connected!")
 
@@ -48,28 +50,27 @@ def run():
 def keep_alive():
     Thread(target=run).start()
 
-# ================= START (HOME UI) =================
+# ================= START =================
 @bot.on_message(filters.command("start"))
 async def start(client, message):
 
     text = f"""
-🍿 NETFLIX MOVIE HUB
+🍿 NETFLIX HUB | XEN3X
 
 👋 Hi {message.from_user.first_name}
 
 ━━━━━━━━━━━━━━━
-🎬 Browse unlimited movies
-🔥 Trending & Latest updates
+🎬 Movies | 🎵 Songs | 🔥 Trending
 """
 
     buttons = InlineKeyboardMarkup(
         [
             [
                 InlineKeyboardButton("🎬 Movies", callback_data="movies"),
-                InlineKeyboardButton("🔥 Trending", callback_data="trending")
+                InlineKeyboardButton("🎵 Songs", callback_data="songs")
             ],
             [
-                InlineKeyboardButton("🎭 Genres", callback_data="genres")
+                InlineKeyboardButton("🔥 Trending", callback_data="trending")
             ],
             [
                 InlineKeyboardButton("👨‍💻 Developer", callback_data="developer")
@@ -85,20 +86,31 @@ async def start(client, message):
 
 # ================= SAVE MOVIES =================
 @bot.on_message(filters.channel & filters.chat(CHANNEL_ID))
-async def save_movie(client, message):
+async def save_content(client, message):
 
+    # 🎬 MOVIE SAVE
     if message.video:
 
         await movies.insert_one({
-            "name": message.caption or "Unknown",
+            "name": message.caption or "Unknown Movie",
             "file_id": message.video.file_id
         })
 
-        print("Movie saved")
+    # 🎵 SONG SAVE
+    if message.audio:
 
-# ================= SEARCH =================
+        title = message.caption or message.audio.title or "Unknown Song"
+
+        await songs.insert_one({
+            "name": title,
+            "file_id": message.audio.file_id
+        })
+
+    print("Saved content")
+
+# ================= SEARCH MOVIE =================
 @bot.on_message(filters.private & filters.text)
-async def search_movie(client, message):
+async def search(client, message):
 
     if message.text.startswith("/"):
         return
@@ -115,7 +127,7 @@ async def search_movie(client, message):
     else:
         await message.reply_text("😔 No movie found")
 
-# ================= CALLBACK SYSTEM =================
+# ================= CALLBACK =================
 @bot.on_callback_query()
 async def callback(client, callback_query):
 
@@ -124,20 +136,16 @@ async def callback(client, callback_query):
     # ================= HOME =================
     if data == "home":
 
-        text = """
-🍿 NETFLIX MOVIE HUB
-
-🎬 Choose category
-"""
+        text = "🍿 NETFLIX HUB"
 
         buttons = InlineKeyboardMarkup(
             [
                 [
                     InlineKeyboardButton("🎬 Movies", callback_data="movies"),
-                    InlineKeyboardButton("🔥 Trending", callback_data="trending")
+                    InlineKeyboardButton("🎵 Songs", callback_data="songs")
                 ],
                 [
-                    InlineKeyboardButton("🎭 Genres", callback_data="genres")
+                    InlineKeyboardButton("🔥 Trending", callback_data="trending")
                 ],
                 [
                     InlineKeyboardButton("👨‍💻 Developer", callback_data="developer")
@@ -154,12 +162,10 @@ async def callback(client, callback_query):
     elif data == "developer":
 
         text = """
-👨‍💻 Developer Info
+👨‍💻 Developer
 
-━━━━━━━━━━━━━━━
 🧑 MUHAMMAD SIYAM
-🎬 MOVIE BOT XEN3X
-⚡ Pyrogram Powered
+🎬 XEN3X BOT
 """
 
         buttons = InlineKeyboardMarkup(
@@ -171,14 +177,8 @@ async def callback(client, callback_query):
             reply_markup=buttons
         )
 
-    # ================= MOVIES GRID =================
+    # ================= MOVIES =================
     elif data == "movies":
-
-        text = """
-🎬 MOVIE LIBRARY
-
-👇 Select a movie
-"""
 
         all_movies = await movies.find().to_list(length=10)
 
@@ -205,64 +205,43 @@ async def callback(client, callback_query):
         ])
 
         await callback_query.message.edit_media(
-            media=InputMediaPhoto(PHOTO_URL, caption=text),
+            media=InputMediaPhoto(PHOTO_URL, caption="🎬 Movies"),
             reply_markup=InlineKeyboardMarkup(buttons)
         )
 
-    # ================= TRENDING =================
-    elif data == "trending":
+    # ================= SONGS =================
+    elif data == "songs":
 
-        latest = await movies.find().limit(6).to_list(length=6)
+        all_songs = await songs.find().to_list(length=10)
 
-        text = "🔥 TRENDING MOVIES"
+        buttons = []
+        row = []
 
-        buttons = [
-            [
-                InlineKeyboardButton(m["name"][:18], callback_data=f"movie_{m['_id']}")
-            ]
-            for m in latest
-        ]
+        for s in all_songs:
+            row.append(
+                InlineKeyboardButton(
+                    s["name"][:18],
+                    callback_data=f"song_{s['_id']}"
+                )
+            )
+
+            if len(row) == 2:
+                buttons.append(row)
+                row = []
+
+        if row:
+            buttons.append(row)
 
         buttons.append([
             InlineKeyboardButton("🔙 Back", callback_data="home")
         ])
 
         await callback_query.message.edit_media(
-            media=InputMediaPhoto(PHOTO_URL, caption=text),
+            media=InputMediaPhoto(PHOTO_URL, caption="🎵 Songs"),
             reply_markup=InlineKeyboardMarkup(buttons)
         )
 
-    # ================= GENRES =================
-    elif data == "genres":
-
-        text = """
-🎭 GENRES
-
-Pick your mood 🍿
-"""
-
-        buttons = InlineKeyboardMarkup(
-            [
-                [
-                    InlineKeyboardButton("💥 Action", callback_data="action"),
-                    InlineKeyboardButton("😂 Comedy", callback_data="comedy")
-                ],
-                [
-                    InlineKeyboardButton("💔 Romance", callback_data="romance"),
-                    InlineKeyboardButton("😱 Thriller", callback_data="thriller")
-                ],
-                [
-                    InlineKeyboardButton("🔙 Back", callback_data="home")
-                ]
-            ]
-        )
-
-        await callback_query.message.edit_media(
-            media=InputMediaPhoto(PHOTO_URL, caption=text),
-            reply_markup=buttons
-        )
-
-    # ================= OPEN MOVIE =================
+    # ================= PLAY MOVIE =================
     elif data.startswith("movie_"):
 
         movie_id = data.split("_")[1]
@@ -270,10 +249,22 @@ Pick your mood 🍿
         movie = await movies.find_one({"_id": ObjectId(movie_id)})
 
         if movie:
-
             await callback_query.message.reply_video(
                 movie["file_id"],
                 caption=f"🎬 {movie['name']}"
+            )
+
+    # ================= PLAY SONG =================
+    elif data.startswith("song_"):
+
+        song_id = data.split("_")[1]
+
+        song = await songs.find_one({"_id": ObjectId(song_id)})
+
+        if song:
+            await callback_query.message.reply_audio(
+                song["file_id"],
+                caption=f"🎵 {song['name']}"
             )
 
 # ================= START BOT =================
