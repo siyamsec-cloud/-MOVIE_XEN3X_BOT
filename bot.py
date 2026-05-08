@@ -29,6 +29,7 @@ if not all([API_ID, API_HASH, BOT_TOKEN, MONGO_URI]):
 # ================= MONGO =================
 mongo = AsyncIOMotorClient(MONGO_URI)
 db = mongo[DB_NAME]
+
 movies = db.movies
 songs = db.songs
 
@@ -65,6 +66,8 @@ async def start(client, message):
 
 ━━━━━━━━━━━━━━━
 🎬 Movies | 🎵 Songs | 🔥 Trending
+
+🔎 Search your favourite movie or song
 """
 
     buttons = InlineKeyboardMarkup(
@@ -79,7 +82,11 @@ async def start(client, message):
         ]
     )
 
-    await message.reply_photo(PHOTO_URL, text, reply_markup=buttons)
+    await message.reply_photo(
+        photo=PHOTO_URL,
+        caption=text,
+        reply_markup=buttons
+    )
 
 # ================= SAVE CONTENT =================
 @bot.on_message(filters.channel & filters.chat(CHANNEL_ID))
@@ -87,15 +94,27 @@ async def save_content(client, message):
 
     try:
 
-        # MOVIE
+        # ===== MOVIE / FILE =====
+        file_id = None
+
+        # Video upload
         if message.video:
+            file_id = message.video.file_id
+
+        # File upload
+        elif message.document:
+            file_id = message.document.file_id
+
+        if file_id:
 
             await movies.insert_one({
                 "name": message.caption or "Unknown Movie",
-                "file_id": message.video.file_id
+                "file_id": file_id
             })
 
-        # SONG
+            print(f"🎬 Saved Movie: {message.caption}")
+
+        # ===== SONG =====
         if message.audio:
 
             title = message.caption or message.audio.title or "Unknown Song"
@@ -105,7 +124,7 @@ async def save_content(client, message):
                 "file_id": message.audio.file_id
             })
 
-        print("✔ Saved content")
+            print(f"🎵 Saved Song: {title}")
 
     except Exception as e:
         print("SAVE ERROR:", e)
@@ -121,7 +140,13 @@ async def callback(client, query):
         # ===== HOME =====
         if data == "home":
 
-            text = "🍿 MOVIE | XEN3X"
+            text = """
+🍿 NETFLIX HUB
+
+🎬 Movies | 🎵 Songs | 🔥 Trending
+
+🔎 Search your favourite movie or song
+"""
 
             buttons = InlineKeyboardMarkup(
                 [
@@ -206,38 +231,117 @@ async def callback(client, query):
                 reply_markup=InlineKeyboardMarkup(buttons)
             )
 
+        # ===== TRENDING =====
+        elif data == "trending":
+
+            text = """
+🔥 Trending Now
+
+• Pushpa 2
+• Leo
+• Animal
+• Salaar
+• KGF 2
+"""
+
+            buttons = InlineKeyboardMarkup(
+                [
+                    [
+                        InlineKeyboardButton("🔙 Back", callback_data="home")
+                    ]
+                ]
+            )
+
+            await query.message.edit_media(
+                InputMediaPhoto(PHOTO_URL, text),
+                reply_markup=buttons
+            )
+
         # ===== PLAY MOVIE =====
         elif data.startswith("movie_"):
 
             try:
+
                 mid = data.split("_")[1]
-                movie = await movies.find_one({"_id": ObjectId(mid)})
+
+                movie = await movies.find_one({
+                    "_id": ObjectId(mid)
+                })
 
                 if movie:
+
                     await query.message.reply_video(
                         movie["file_id"],
                         caption=f"🎬 {movie['name']}"
                     )
-            except:
+
+            except Exception as e:
+                print(e)
                 await query.message.reply_text("❌ Movie error")
 
         # ===== PLAY SONG =====
         elif data.startswith("song_"):
 
             try:
+
                 sid = data.split("_")[1]
-                song = await songs.find_one({"_id": ObjectId(sid)})
+
+                song = await songs.find_one({
+                    "_id": ObjectId(sid)
+                })
 
                 if song:
+
                     await query.message.reply_audio(
                         song["file_id"],
                         caption=f"🎵 {song['name']}"
                     )
-            except:
+
+            except Exception as e:
+                print(e)
                 await query.message.reply_text("❌ Song error")
 
     except Exception as e:
         print("CALLBACK ERROR:", e)
+
+# ================= SEARCH =================
+@bot.on_message(filters.private & filters.text)
+async def search_movie(client, message):
+
+    if message.text.startswith("/"):
+        return
+
+    movie_name = message.text.strip()
+
+    result = await movies.find_one({
+        "name": {"$regex": movie_name, "$options": "i"}
+    })
+
+    if result:
+
+        await message.reply_video(
+            result["file_id"],
+            caption=f"🎬 {result['name']}"
+        )
+
+    else:
+
+        song = await songs.find_one({
+            "name": {"$regex": movie_name, "$options": "i"}
+        })
+
+        if song:
+
+            await message.reply_audio(
+                song["file_id"],
+                caption=f"🎵 {song['name']}"
+            )
+
+        else:
+
+            await message.reply_text(
+                f"😔 No result found for: {movie_name}"
+            )
 
 # ================= RUN BOT =================
 print("🚀 Bot Started")
