@@ -48,6 +48,7 @@ def keep_alive():
 # ================= START COMMAND =================
 @bot.on_message(filters.command("start"))
 async def start(client, message):
+
     text = f"""
 🎬 MOVIE | XEN3X
 
@@ -98,9 +99,11 @@ Just send movie name 👇
 # ================= SAVE FROM CHANNEL =================
 @bot.on_message(filters.channel & filters.chat(CHANNEL_ID))
 async def save_movie(client, message):
+
     print(message)
 
     if message.video:
+
         name = message.caption or "Unknown"
 
         await movies.insert_one({
@@ -111,30 +114,25 @@ async def save_movie(client, message):
         print(f"Saved movie: {name}")
 
 # ================= SEARCH MOVIE =================
-@bot.on_message(filters.text & ~filters.command(["start"]))
+@bot.on_message(filters.private & filters.text)
 async def search_movie(client, message):
-    movie_name = message.text
+
+    if message.text.startswith("/"):
+        return
+
+    movie_name = message.text.strip()
 
     result = await movies.find_one({
         "name": {"$regex": movie_name, "$options": "i"}
     })
 
     if result:
-        buttons = InlineKeyboardMarkup(
-            [
-                [
-                    InlineKeyboardButton(
-                        "🎬 Watch",
-                        callback_data=f"watch|{result['file_id']}"
-                    )
-                ]
-            ]
+
+        await message.reply_video(
+            result["file_id"],
+            caption=f"🎬 {result['name']}"
         )
 
-        await message.reply_text(
-            f"🎬 Movie Found: {result['name']}",
-            reply_markup=buttons
-        )
     else:
         await message.reply_text(
             f"😔 No movie found for: {movie_name}"
@@ -143,6 +141,7 @@ async def search_movie(client, message):
 # ================= CALLBACK =================
 @bot.on_callback_query()
 async def callback(client, callback_query):
+
     data = callback_query.data
 
     if data.startswith("watch"):
