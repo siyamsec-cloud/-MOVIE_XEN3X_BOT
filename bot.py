@@ -112,7 +112,7 @@ async def search_movie(client, message):
             f"😔 No movie found for: {movie_name}"
         )
 
-# ================= CALLBACK (SEND FILE) =================
+# ================= CALLBACK (IMPORTANT FIX) =================
 @bot.on_callback_query()
 async def callback(client, callback_query):
     data = callback_query.data
