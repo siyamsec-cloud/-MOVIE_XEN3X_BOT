@@ -121,7 +121,7 @@ async def callback(client, query):
         # ===== HOME =====
         if data == "home":
 
-            text = "🍿 NETFLIX HUB"
+            text = "🍿 MOVIE | XEN3X"
 
             buttons = InlineKeyboardMarkup(
                 [
