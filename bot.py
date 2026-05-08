@@ -15,8 +15,8 @@ API_HASH = os.getenv("API_HASH", "")
 BOT_TOKEN = os.getenv("BOT_TOKEN", "")
 MONGO_URI = os.getenv("MONGO_URI", "")
 
-DB_NAME = "MovieBot"
 ADMIN_ID = 6298355162
+DB_NAME = "MovieBot"
 
 PHOTO_URL = "https://i.postimg.cc/XJycncFq/Picsart-26-05-01-12-48-36-061.png"
 
@@ -57,7 +57,7 @@ async def start(client, message):
     text = f"""
 🎬 NETFLIX HUB PRO
 
-👋 Hello {message.from_user.first_name}
+👋 Hi {message.from_user.first_name}
 
 ━━━━━━━━━━━━━━
 🎬 Movies | 🎵 Songs | 📺 Bachelor
@@ -65,11 +65,11 @@ async def start(client, message):
 
     buttons = InlineKeyboardMarkup([
         [
-            InlineKeyboardButton("🎬 Movies", callback_data="movies_0"),
-            InlineKeyboardButton("🎵 Songs", callback_data="songs_0")
+            InlineKeyboardButton("🎬 Movies", callback_data="movies"),
+            InlineKeyboardButton("🎵 Songs", callback_data="songs")
         ],
         [
-            InlineKeyboardButton("📺 Bachelor", callback_data="bp_0")
+            InlineKeyboardButton("📺 Bachelor", callback_data="bp")
         ],
         [
             InlineKeyboardButton("🔐 Admin", callback_data="admin")
@@ -86,9 +86,7 @@ async def admin_panel(client, query):
         return await query.answer("❌ No Access")
 
     buttons = InlineKeyboardMarkup([
-        [
-            InlineKeyboardButton("📊 Stats", callback_data="stats")
-        ],
+        [InlineKeyboardButton("📊 Stats", callback_data="stats")],
         [
             InlineKeyboardButton("🎬 Add Movie", callback_data="add_movie"),
             InlineKeyboardButton("🎵 Add Song", callback_data="add_song")
@@ -102,7 +100,7 @@ async def admin_panel(client, query):
 
 # ================= CALLBACK =================
 @bot.on_callback_query()
-async def callback(client, query):
+async def cb(client, query):
 
     data = query.data
 
@@ -117,7 +115,7 @@ async def callback(client, query):
         b = await bechelor.count_documents({})
 
         return await query.message.reply_text(
-            f"📊 Stats\n🎬 Movies: {m}\n🎵 Songs: {s}\n📺 Bachelor: {b}"
+            f"📊 STATS\n🎬 Movies: {m}\n🎵 Songs: {s}\n📺 Bachelor: {b}"
         )
 
     # ===== SET STATES =====
@@ -131,9 +129,9 @@ async def callback(client, query):
 
     if data == "add_song":
         user_state[query.from_user.id] = "song"
-        return await query.message.reply_text("🎵 Send Audio Song")
+        return await query.message.reply_text("🎵 Send Song Audio")
 
-# ================= SAVE FIX (IMPORTANT) =================
+# ================= SAVE FIX (MAIN FIX PART) =================
 @bot.on_message(filters.private & (filters.video | filters.document | filters.audio))
 async def save(client, message):
 
@@ -144,18 +142,20 @@ async def save(client, message):
 
     file_id = None
 
-    # 🔥 FIXED VIDEO DETECTION
+    # ✅ VIDEO FIX
     if message.video:
         file_id = message.video.file_id
 
+    # ✅ DOCUMENT VIDEO FIX
     elif message.document and message.document.mime_type and "video" in message.document.mime_type:
         file_id = message.document.file_id
 
+    # ✅ AUDIO
     elif message.audio:
         file_id = message.audio.file_id
 
     if not file_id:
-        return await message.reply("❌ Invalid file")
+        return await message.reply("❌ Invalid File")
 
     # ===== MOVIE =====
     if state == "movie":
@@ -167,7 +167,7 @@ async def save(client, message):
 
         user_state.pop(message.from_user.id, None)
 
-        return await message.reply("🎬 Movie Added Successfully")
+        return await message.reply("🎬 Movie Added")
 
     # ===== BACHELOR =====
     if state == "bp":
@@ -179,7 +179,7 @@ async def save(client, message):
 
         user_state.pop(message.from_user.id, None)
 
-        return await message.reply("📺 Bachelor Added Successfully")
+        return await message.reply("📺 Bachelor Added")
 
     # ===== SONG =====
     if state == "song":
@@ -191,7 +191,7 @@ async def save(client, message):
 
         user_state.pop(message.from_user.id, None)
 
-        return await message.reply("🎵 Song Added Successfully")
+        return await message.reply("🎵 Song Added")
 
 # ================= PLAY MOVIE =================
 @bot.on_callback_query(filters.regex("movie_"))
@@ -204,7 +204,7 @@ async def play_movie(client, query):
     if movie:
         await query.message.reply_video(movie["file_id"], caption=movie["name"])
 
-# ================= PLAY BACHELOR =================
+# ================= PLAY BP =================
 @bot.on_callback_query(filters.regex("bp_"))
 async def play_bp(client, query):
 
@@ -214,6 +214,35 @@ async def play_bp(client, query):
 
     if bp:
         await query.message.reply_video(bp["file_id"], caption=bp["name"])
+
+# ================= SIMPLE LIST =================
+@bot.on_callback_query(filters.regex("movies"))
+async def movies_list(client, query):
+
+    data = await movies.find().to_list(length=10)
+
+    buttons = []
+
+    for m in data:
+        buttons.append([
+            InlineKeyboardButton(m["name"], callback_data=f"movie_{m['_id']}")
+        ])
+
+    await query.message.reply_text("🎬 Movies", reply_markup=InlineKeyboardMarkup(buttons))
+
+@bot.on_callback_query(filters.regex("bp"))
+async def bp_list(client, query):
+
+    data = await bechelor.find().to_list(length=10)
+
+    buttons = []
+
+    for b in data:
+        buttons.append([
+            InlineKeyboardButton(b["name"], callback_data=f"bp_{b['_id']}")
+        ])
+
+    await query.message.reply_text("📺 Bachelor", reply_markup=InlineKeyboardMarkup(buttons))
 
 # ================= RUN =================
 print("🚀 Bot Running")
