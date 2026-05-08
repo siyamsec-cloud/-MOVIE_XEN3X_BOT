@@ -15,6 +15,7 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 
 MONGO_URI = os.getenv("MONGO_URI")
 DB_NAME = os.getenv("DB_NAME", "MovieBot")
+CHANNEL_ID = int(os.getenv("BIN_CHANNEL"))
 
 # ================= MONGO =================
 mongo = AsyncIOMotorClient(MONGO_URI)
@@ -95,7 +96,7 @@ Just send movie name 👇
     await message.reply_text(text, reply_markup=buttons)
 
 # ================= SAVE FROM CHANNEL =================
-@bot.on_message(filters.channel)
+@bot.on_message(filters.channel & filters.chat(CHANNEL_ID))
 async def save_movie(client, message):
     print(message)
 
