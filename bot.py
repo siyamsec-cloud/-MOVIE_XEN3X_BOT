@@ -3,7 +3,11 @@ asyncio.set_event_loop(asyncio.new_event_loop())
 
 import os
 from pyrogram import Client, filters
-from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from pyrogram.types import (
+    InlineKeyboardMarkup,
+    InlineKeyboardButton,
+    InputMediaPhoto
+)
 from motor.motor_asyncio import AsyncIOMotorClient
 from flask import Flask
 from threading import Thread
@@ -16,6 +20,8 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 MONGO_URI = os.getenv("MONGO_URI")
 DB_NAME = os.getenv("DB_NAME", "MovieBot")
 CHANNEL_ID = int(os.getenv("BIN_CHANNEL"))
+
+PHOTO_URL = "https://i.postimg.cc/XJycncFq/Picsart-26-05-01-12-48-36-061.png"
 
 # ================= MONGO =================
 mongo = AsyncIOMotorClient(MONGO_URI)
@@ -32,7 +38,7 @@ bot = Client(
     bot_token=BOT_TOKEN
 )
 
-# ================= FLASK (KEEP ALIVE) =================
+# ================= FLASK =================
 app = Flask(__name__)
 
 @app.route("/")
@@ -45,7 +51,7 @@ def run():
 def keep_alive():
     Thread(target=run).start()
 
-# ================= START COMMAND =================
+# ================= START =================
 @bot.on_message(filters.command("start"))
 async def start(client, message):
 
@@ -55,52 +61,50 @@ async def start(client, message):
 👋 Welcome {message.from_user.first_name}
 
 ━━━━━━━━━━━━━━━
-✨ What this bot does:
-• 🔎 Search movies instantly
-• 🎥 Watch & download movies
-• ⚡ Fast auto-filter system
+✨ Welcome to the best movie bot
+
+📌 Features:
+• Movies
+• Songs
+• Fast Search
+• Auto Filter
 
 ━━━━━━━━━━━━━━━
-📌 How to use:
-Just send movie name 👇
-➡️ Avengers
-➡️ Avatar
-➡️ John Wick
-
-━━━━━━━━━━━━━━━
-🤖 System Info:
-• Powered by MongoDB
-• Auto movie database
-• Fast search engine
-
-━━━━━━━━━━━━━━━
-👨‍💻 Developer: S1Y4M | XEN3X
+🔎 Search your favourite movie or song
 """
 
     buttons = InlineKeyboardMarkup(
         [
             [
                 InlineKeyboardButton(
-                    "🎬 Start Searching",
-                    switch_inline_query_current_chat=""
+                    "👨‍💻 Developer Info",
+                    callback_data="developer"
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    "🎬 Upcoming Movies",
+                    callback_data="upcoming"
                 )
             ],
             [
                 InlineKeyboardButton(
                     "🔥 Updates Channel",
-                    url="https://t.me/"
+                    url="https://t.me/moviexen3x"
                 )
             ]
         ]
     )
 
-    await message.reply_text(text, reply_markup=buttons)
+    await message.reply_photo(
+        photo=PHOTO_URL,
+        caption=text,
+        reply_markup=buttons
+    )
 
-# ================= SAVE FROM CHANNEL =================
+# ================= SAVE MOVIES =================
 @bot.on_message(filters.channel & filters.chat(CHANNEL_ID))
 async def save_movie(client, message):
-
-    print(message)
 
     if message.video:
 
@@ -113,7 +117,7 @@ async def save_movie(client, message):
 
         print(f"Saved movie: {name}")
 
-# ================= SEARCH MOVIE =================
+# ================= SEARCH =================
 @bot.on_message(filters.private & filters.text)
 async def search_movie(client, message):
 
@@ -144,9 +148,120 @@ async def callback(client, callback_query):
 
     data = callback_query.data
 
-    if data.startswith("watch"):
-        file_id = data.split("|")[1]
-        await callback_query.message.reply_video(file_id)
+    # ===== Developer =====
+    if data == "developer":
+
+        text = """
+👨‍💻 Developer Information
+
+━━━━━━━━━━━━━━━
+🧑 Name: MUHAMMAD SIYAM
+🎬 Bot Name: MOVIE | XEN3X
+⚡ Powered By Pyrogram
+━━━━━━━━━━━━━━━
+"""
+
+        buttons = InlineKeyboardMarkup(
+            [
+                [
+                    InlineKeyboardButton(
+                        "🔙 Back",
+                        callback_data="back"
+                    )
+                ]
+            ]
+        )
+
+        await callback_query.message.edit_media(
+            media=InputMediaPhoto(
+                PHOTO_URL,
+                caption=text
+            ),
+            reply_markup=buttons
+        )
+
+    # ===== Upcoming =====
+    elif data == "upcoming":
+
+        text = """
+🎬 Upcoming Movies
+
+━━━━━━━━━━━━━━━
+• DHURANDHAR
+• Leo
+• SITA RAM
+• Salaar
+• MAALIK
+━━━━━━━━━━━━━━━
+"""
+
+        buttons = InlineKeyboardMarkup(
+            [
+                [
+                    InlineKeyboardButton(
+                        "🔙 Back",
+                        callback_data="back"
+                    )
+                ]
+            ]
+        )
+
+        await callback_query.message.edit_caption(
+            caption=text,
+            reply_markup=buttons
+        )
+
+    # ===== Back =====
+    elif data == "back":
+
+        text = f"""
+🎬 MOVIE | XEN3X
+
+👋 Welcome {callback_query.from_user.first_name}
+
+━━━━━━━━━━━━━━━
+✨ Welcome to the best movie bot
+
+📌 Features:
+• Movies
+• Songs
+• Fast Search
+• Auto Filter
+
+━━━━━━━━━━━━━━━
+🔎 Search your favourite movie or song
+"""
+
+        buttons = InlineKeyboardMarkup(
+            [
+                [
+                    InlineKeyboardButton(
+                        "👨‍💻 Developer Info",
+                        callback_data="developer"
+                    )
+                ],
+                [
+                    InlineKeyboardButton(
+                        "🎬 Upcoming Movies",
+                        callback_data="upcoming"
+                    )
+                ],
+                [
+                    InlineKeyboardButton(
+                        "🔥 Updates Channel",
+                        url="https://t.me/moviexen3x"
+                    )
+                ]
+            ]
+        )
+
+        await callback_query.message.edit_media(
+            media=InputMediaPhoto(
+                PHOTO_URL,
+                caption=text
+            ),
+            reply_markup=buttons
+        )
 
 # ================= START BOT =================
 print("Bot Started...")
