@@ -258,26 +258,37 @@ async def callback(client, query):
             )
 
         # ===== PLAY MOVIE =====
-        elif data.startswith("movie_"):
+elif data.startswith("movie_"):
+
+    try:
+
+        mid = data.split("_")[1]
+
+        movie = await movies.find_one({
+            "_id": ObjectId(mid)
+        })
+
+        if movie:
 
             try:
 
-                mid = data.split("_")[1]
+                # Try as video
+                await query.message.reply_video(
+                    movie["file_id"],
+                    caption=f"🎬 {movie['name']}"
+                )
 
-                movie = await movies.find_one({
-                    "_id": ObjectId(mid)
-                })
+            except:
 
-                if movie:
+                # If file/document
+                await query.message.reply_document(
+                    movie["file_id"],
+                    caption=f"🎬 {movie['name']}"
+                )
 
-                    await query.message.reply_video(
-                        movie["file_id"],
-                        caption=f"🎬 {movie['name']}"
-                    )
-
-            except Exception as e:
-                print(e)
-                await query.message.reply_text("❌ Movie error")
+    except Exception as e:
+        print(e)
+        await query.message.reply_text("❌ Movie error")
 
         # ===== PLAY SONG =====
         elif data.startswith("song_"):
