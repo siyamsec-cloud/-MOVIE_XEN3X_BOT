@@ -42,22 +42,45 @@ def run():
 def keep_alive():
     Thread(target=run).start()
 
-# ================= START COMMAND =================
+# ================= START COMMAND (REPLACED) =================
 @bot.on_message(filters.command("start"))
 async def start(client, message):
-    text = """
-🎬 Welcome to Movie Bot
+    text = f"""
+🎬 MOVIE | XEN3X
 
-Send any movie name to search.
+👋 Welcome {message.from_user.first_name}
 
-Example:
-➡️ Avatar
+━━━━━━━━━━━━━━━
+✨ What this bot does:
+• 🔎 Search movies instantly
+• 🎥 Watch & download movies
+• ⚡ Fast auto-filter system
+
+━━━━━━━━━━━━━━━
+📌 How to use:
+Just send movie name 👇
 ➡️ Avengers
+➡️ Avatar
 ➡️ John Wick
+
+━━━━━━━━━━━━━━━
+🤖 System Info:
+• Powered by MongoDB
+• Auto movie database
+• Fast search engine
+
+━━━━━━━━━━━━━━━
+👨‍💻 Developer: S1Y4M | XEN3X
 """
 
     buttons = InlineKeyboardMarkup(
         [
+            [
+                InlineKeyboardButton(
+                    "🎬 Start Searching",
+                    switch_inline_query_current_chat=""
+                )
+            ],
             [
                 InlineKeyboardButton(
                     "🔥 Updates Channel",
@@ -112,14 +135,13 @@ async def search_movie(client, message):
             f"😔 No movie found for: {movie_name}"
         )
 
-# ================= CALLBACK (IMPORTANT FIX) =================
+# ================= CALLBACK =================
 @bot.on_callback_query()
 async def callback(client, callback_query):
     data = callback_query.data
 
     if data.startswith("watch"):
         file_id = data.split("|")[1]
-
         await callback_query.message.reply_video(file_id)
 
 # ================= START BOT =================
