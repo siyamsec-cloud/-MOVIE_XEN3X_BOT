@@ -63,7 +63,6 @@ async def start(client, message):
 ━━━━━━━━━━━━━━━
 📌 How to use:
 Just send movie name 👇
-🃏LEO COMING🃏
 ➡️ Avengers
 ➡️ Avatar
 ➡️ John Wick
