@@ -44,31 +44,11 @@ def home():
 
 Thread(target=lambda: app.run(host="0.0.0.0", port=10000)).start()
 
-# ================= ADMIN STATE =================
+# ================= STATE =================
 user_state = {}
 
 def is_admin(uid):
     return uid == ADMIN_ID
-
-# ================= POSTER =================
-def poster(title, cat):
-
-    if cat == "movie":
-        emoji = "🎬 MOVIE"
-    elif cat == "song":
-        emoji = "🎵 SONG"
-    else:
-        emoji = "📺 BACHELOR"
-
-    return f"""
-✨ {emoji} RELEASED ✨
-
-━━━━━━━━━━━━━━
-📌 {title}
-━━━━━━━━━━━━━━
-
-🔥 NETFLIX HUB PRO
-"""
 
 # ================= START =================
 @bot.on_message(filters.command("start"))
@@ -120,9 +100,9 @@ async def admin_panel(client, query):
 
     await query.message.reply_text("🔐 ADMIN PANEL", reply_markup=buttons)
 
-# ================= ADMIN ACTIONS =================
+# ================= CALLBACK =================
 @bot.on_callback_query()
-async def admin_actions(client, query):
+async def callback(client, query):
 
     data = query.data
 
@@ -140,94 +120,100 @@ async def admin_actions(client, query):
             f"📊 Stats\n🎬 Movies: {m}\n🎵 Songs: {s}\n📺 Bachelor: {b}"
         )
 
-    # ===== ADD STATES =====
+    # ===== SET STATES =====
     if data == "add_movie":
         user_state[query.from_user.id] = "movie"
         return await query.message.reply_text("🎬 Send Movie Video")
-
-    if data == "add_song":
-        user_state[query.from_user.id] = "song"
-        return await query.message.reply_text("🎵 Send Song Audio")
 
     if data == "add_bp":
         user_state[query.from_user.id] = "bp"
         return await query.message.reply_text("📺 Send Bachelor Video")
 
-    # ===== DELETE =====
-    if data.startswith("del_"):
+    if data == "add_song":
+        user_state[query.from_user.id] = "song"
+        return await query.message.reply_text("🎵 Send Audio Song")
 
-        if not is_admin(query.from_user.id):
-            return
-
-        _, typ, id = data.split("_")
-
-        from bson import ObjectId
-
-        if typ == "movie":
-            await movies.delete_one({"_id": ObjectId(id)})
-        elif typ == "song":
-            await songs.delete_one({"_id": ObjectId(id)})
-        elif typ == "bp":
-            await bechelor.delete_one({"_id": ObjectId(id)})
-
-        return await query.message.edit_text("🗑 Deleted Successfully")
-
-# ================= SAVE SYSTEM =================
+# ================= SAVE FIX (IMPORTANT) =================
 @bot.on_message(filters.private & (filters.video | filters.document | filters.audio))
 async def save(client, message):
 
-    uid = message.from_user.id
-
-    if not is_admin(uid):
+    if not is_admin(message.from_user.id):
         return
 
-    state = user_state.get(uid)
+    state = user_state.get(message.from_user.id)
+
+    file_id = None
+
+    # 🔥 FIXED VIDEO DETECTION
+    if message.video:
+        file_id = message.video.file_id
+
+    elif message.document and message.document.mime_type and "video" in message.document.mime_type:
+        file_id = message.document.file_id
+
+    elif message.audio:
+        file_id = message.audio.file_id
+
+    if not file_id:
+        return await message.reply("❌ Invalid file")
 
     # ===== MOVIE =====
     if state == "movie":
 
-        file_id = message.video.file_id if message.video else message.document.file_id
-
-        data = await movies.insert_one({
+        await movies.insert_one({
             "name": message.caption or "Movie",
             "file_id": file_id
         })
 
-        user_state.pop(uid, None)
+        user_state.pop(message.from_user.id, None)
 
-        await message.reply_photo(
-            PHOTO_URL,
-            caption=poster(message.caption, "movie")
-        )
-
-    # ===== SONG =====
-    elif state == "song":
-
-        await songs.insert_one({
-            "name": message.caption or "Song",
-            "file_id": message.audio.file_id
-        })
-
-        user_state.pop(uid, None)
-
-        await message.reply_text("🎵 Song Added")
+        return await message.reply("🎬 Movie Added Successfully")
 
     # ===== BACHELOR =====
-    elif state == "bp":
-
-        file_id = message.video.file_id if message.video else message.document.file_id
+    if state == "bp":
 
         await bechelor.insert_one({
             "name": message.caption or "Bachelor",
             "file_id": file_id
         })
 
-        user_state.pop(uid, None)
+        user_state.pop(message.from_user.id, None)
 
-        await message.reply_photo(
-            PHOTO_URL,
-            caption=poster(message.caption, "bachelor")
-        )
+        return await message.reply("📺 Bachelor Added Successfully")
+
+    # ===== SONG =====
+    if state == "song":
+
+        await songs.insert_one({
+            "name": message.caption or "Song",
+            "file_id": file_id
+        })
+
+        user_state.pop(message.from_user.id, None)
+
+        return await message.reply("🎵 Song Added Successfully")
+
+# ================= PLAY MOVIE =================
+@bot.on_callback_query(filters.regex("movie_"))
+async def play_movie(client, query):
+
+    mid = query.data.split("_")[1]
+
+    movie = await movies.find_one({"_id": ObjectId(mid)})
+
+    if movie:
+        await query.message.reply_video(movie["file_id"], caption=movie["name"])
+
+# ================= PLAY BACHELOR =================
+@bot.on_callback_query(filters.regex("bp_"))
+async def play_bp(client, query):
+
+    bid = query.data.split("_")[1]
+
+    bp = await bechelor.find_one({"_id": ObjectId(bid)})
+
+    if bp:
+        await query.message.reply_video(bp["file_id"], caption=bp["name"])
 
 # ================= RUN =================
 print("🚀 Bot Running")
