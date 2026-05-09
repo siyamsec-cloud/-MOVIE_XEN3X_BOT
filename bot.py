@@ -9,7 +9,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from flask import Flask
 from threading import Thread
 
-# ================= CONFIG =================
+# ================= SAFE CONFIG =================
 API_ID = int(os.getenv("API_ID", "0"))
 API_HASH = os.getenv("API_HASH", "")
 BOT_TOKEN = os.getenv("BOT_TOKEN", "")
@@ -19,9 +19,10 @@ DB_NAME = os.getenv("DB_NAME", "MovieBot")
 
 CHANNEL_ID = int(os.getenv("BIN_CHANNEL", "0"))
 
-PHOTO_URL = "https://i.postimg.cc/XJycncFq/Picsart-26-05-01-12-48-36-061.png"
+# 🔥 UPDATED PHOTO
+PHOTO_URL = "https://i.postimg.cc/d3k4WY38/file-00000000af0c720bb7bcdf801169a1bb.png"
 
-# ================= CHECK =================
+# ================= VALIDATION =================
 if not all([API_ID, API_HASH, BOT_TOKEN, MONGO_URI]):
     print("❌ Missing ENV variables!")
     exit()
@@ -32,6 +33,7 @@ db = mongo[DB_NAME]
 
 movies = db.movies
 songs = db.songs
+bachelor = db.bachelor_point
 
 print("✅ Mongo Connected")
 
@@ -43,7 +45,7 @@ bot = Client(
     bot_token=BOT_TOKEN
 )
 
-# ================= FLASK =================
+# ================= FLASK KEEP ALIVE =================
 app = Flask(__name__)
 
 @app.route("/")
@@ -65,9 +67,9 @@ async def start(client, message):
 👋 Hi {message.from_user.first_name}
 
 ━━━━━━━━━━━━━━━
-🎬 Movies | 🎵 Songs | 🔥 Trending
+🎬 Movies | 🎵 Songs | 🎓 Bachelor Point | 🔥 Trending
 
-🔎 Search your favourite movie or song
+🔎 Search your favourite content
 """
 
     buttons = InlineKeyboardMarkup([
@@ -76,6 +78,7 @@ async def start(client, message):
             InlineKeyboardButton("🎵 Songs", callback_data="songs")
         ],
         [
+            InlineKeyboardButton("🎓 Bachelor Point", callback_data="bachelor"),
             InlineKeyboardButton("🔥 Trending", callback_data="trending")
         ]
     ])
@@ -92,33 +95,39 @@ async def save_content(client, message):
 
     try:
 
-        # ===== VIDEO FILE =====
+        # ===== MOVIES =====
         if message.video or message.document:
-
-            file = message.video or message.document
+            file_id = message.video.file_id if message.video else message.document.file_id
 
             await movies.insert_one({
-                "name": message.caption or file.file_name or "Unknown Movie",
-                "file_id": file.file_id
+                "name": message.caption or "Unknown Movie",
+                "file_id": file_id
             })
 
-            print(f"🎬 Saved Movie: {message.caption}")
-
-        # ===== AUDIO =====
-        elif message.audio:
-
-            title = (
-                message.caption or
-                message.audio.title or
-                "Unknown Song"
-            )
+        # ===== SONGS =====
+        if message.audio:
+            title = message.caption or message.audio.title or "Unknown Song"
 
             await songs.insert_one({
                 "name": title,
                 "file_id": message.audio.file_id
             })
 
-            print(f"🎵 Saved Song: {title}")
+        # ===== BACHELOR POINT =====
+        caption = (message.caption or "").lower()
+
+        if message.video or message.document:
+
+            if "bachelor point" in caption or "bechelor point" in caption:
+
+                file_id = message.video.file_id if message.video else message.document.file_id
+
+                await bachelor.insert_one({
+                    "name": message.caption or "Bachelor Point Episode",
+                    "file_id": file_id
+                })
+
+                print(f"🎓 Saved Bachelor Point: {message.caption}")
 
     except Exception as e:
         print("SAVE ERROR:", e)
@@ -134,13 +143,7 @@ async def callback(client, query):
         # ===== HOME =====
         if data == "home":
 
-            text = """
-🍿 NETFLIX HUB
-
-🎬 Movies | 🎵 Songs | 🔥 Trending
-
-🔎 Search your favourite movie or song
-"""
+            text = "🍿 NETFLIX HUB"
 
             buttons = InlineKeyboardMarkup([
                 [
@@ -148,6 +151,7 @@ async def callback(client, query):
                     InlineKeyboardButton("🎵 Songs", callback_data="songs")
                 ],
                 [
+                    InlineKeyboardButton("🎓 Bachelor Point", callback_data="bachelor"),
                     InlineKeyboardButton("🔥 Trending", callback_data="trending")
                 ]
             ])
@@ -160,20 +164,18 @@ async def callback(client, query):
         # ===== MOVIES =====
         elif data == "movies":
 
-            data_list = await movies.find().to_list(length=10)
+            data_list = await movies.find().to_list(10)
 
             buttons = []
             row = []
 
             for m in data_list:
-
                 row.append(
                     InlineKeyboardButton(
                         m.get("name", "Movie")[:18],
                         callback_data=f"movie_{str(m['_id'])}"
                     )
                 )
-
                 if len(row) == 2:
                     buttons.append(row)
                     row = []
@@ -181,9 +183,7 @@ async def callback(client, query):
             if row:
                 buttons.append(row)
 
-            buttons.append([
-                InlineKeyboardButton("🔙 Back", callback_data="home")
-            ])
+            buttons.append([InlineKeyboardButton("🔙 Back", callback_data="home")])
 
             await query.message.edit_media(
                 InputMediaPhoto(PHOTO_URL, "🎬 Movies"),
@@ -193,17 +193,45 @@ async def callback(client, query):
         # ===== SONGS =====
         elif data == "songs":
 
-            data_list = await songs.find().to_list(length=10)
+            data_list = await songs.find().to_list(10)
 
             buttons = []
             row = []
 
             for s in data_list:
-
                 row.append(
                     InlineKeyboardButton(
                         s.get("name", "Song")[:18],
                         callback_data=f"song_{str(s['_id'])}"
+                    )
+                )
+                if len(row) == 2:
+                    buttons.append(row)
+                    row = []
+
+            if row:
+                buttons.append(row)
+
+            buttons.append([InlineKeyboardButton("🔙 Back", callback_data="home")])
+
+            await query.message.edit_media(
+                InputMediaPhoto(PHOTO_URL, "🎵 Songs"),
+                reply_markup=InlineKeyboardMarkup(buttons)
+            )
+
+        # ===== BACHELOR POINT =====
+        elif data == "bachelor":
+
+            data_list = await bachelor.find().to_list(20)
+
+            buttons = []
+            row = []
+
+            for bp in data_list:
+                row.append(
+                    InlineKeyboardButton(
+                        bp.get("name", "Episode")[:18],
+                        callback_data=f"bp_{str(bp['_id'])}"
                     )
                 )
 
@@ -214,12 +242,10 @@ async def callback(client, query):
             if row:
                 buttons.append(row)
 
-            buttons.append([
-                InlineKeyboardButton("🔙 Back", callback_data="home")
-            ])
+            buttons.append([InlineKeyboardButton("🔙 Back", callback_data="home")])
 
             await query.message.edit_media(
-                InputMediaPhoto(PHOTO_URL, "🎵 Songs"),
+                InputMediaPhoto(PHOTO_URL, "🎓 Bachelor Point Episodes"),
                 reply_markup=InlineKeyboardMarkup(buttons)
             )
 
@@ -236,132 +262,75 @@ async def callback(client, query):
 • KGF 2
 """
 
-            buttons = InlineKeyboardMarkup([
-                [
-                    InlineKeyboardButton("🔙 Back", callback_data="home")
-                ]
-            ])
-
             await query.message.edit_media(
                 InputMediaPhoto(PHOTO_URL, text),
-                reply_markup=buttons
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("🔙 Back", callback_data="home")]
+                ])
             )
 
         # ===== PLAY MOVIE =====
         elif data.startswith("movie_"):
 
-            try:
+            mid = data.split("_")[1]
+            movie = await movies.find_one({"_id": ObjectId(mid)})
 
-                mid = data.split("_")[1]
-
-                movie = await movies.find_one({
-                    "_id": ObjectId(mid)
-                })
-
-                if movie:
-
-                    await query.message.reply_video(
-                        video=movie["file_id"],
-                        caption=f"🎬 {movie['name']}",
-                        supports_streaming=True
-                    )
-
-            except Exception as e:
-
-                print(e)
-
-                try:
-                    await query.message.reply_document(
-                        movie["file_id"],
-                        caption=f"🎬 {movie['name']}"
-                    )
-                except:
-                    await query.message.reply_text("❌ Video Play Error")
+            if movie:
+                await query.message.reply_video(
+                    movie["file_id"],
+                    caption=f"🎬 {movie['name']}"
+                )
 
         # ===== PLAY SONG =====
         elif data.startswith("song_"):
 
-            try:
+            sid = data.split("_")[1]
+            song = await songs.find_one({"_id": ObjectId(sid)})
 
-                sid = data.split("_")[1]
+            if song:
+                await query.message.reply_audio(
+                    song["file_id"],
+                    caption=f"🎵 {song['name']}"
+                )
 
-                song = await songs.find_one({
-                    "_id": ObjectId(sid)
-                })
+        # ===== PLAY BACHELOR =====
+        elif data.startswith("bp_"):
 
-                if song:
+            bid = data.split("_")[1]
+            video = await bachelor.find_one({"_id": ObjectId(bid)})
 
-                    await query.message.reply_audio(
-                        song["file_id"],
-                        caption=f"🎵 {song['name']}"
-                    )
-
-            except Exception as e:
-                print(e)
-                await query.message.reply_text("❌ Song Error")
+            if video:
+                await query.message.reply_video(
+                    video["file_id"],
+                    caption=f"🎓 {video['name']}"
+                )
 
     except Exception as e:
         print("CALLBACK ERROR:", e)
 
 # ================= SEARCH =================
 @bot.on_message(filters.private & filters.text)
-async def search_movie(client, message):
+async def search(client, message):
 
     if message.text.startswith("/"):
         return
 
-    search = message.text.strip()
+    name = message.text.strip()
 
-    # ===== SEARCH MOVIE =====
-    movie = await movies.find_one({
-        "name": {
-            "$regex": search,
-            "$options": "i"
-        }
-    })
+    result = await movies.find_one({"name": {"$regex": name, "$options": "i"}})
 
-    if movie:
-
-        try:
-
-            await message.reply_video(
-                video=movie["file_id"],
-                caption=f"🎬 {movie['name']}",
-                supports_streaming=True
-            )
-
-        except:
-
-            await message.reply_document(
-                movie["file_id"],
-                caption=f"🎬 {movie['name']}"
-            )
-
+    if result:
+        await message.reply_video(result["file_id"], caption=f"🎬 {result['name']}")
         return
 
-    # ===== SEARCH SONG =====
-    song = await songs.find_one({
-        "name": {
-            "$regex": search,
-            "$options": "i"
-        }
-    })
+    song = await songs.find_one({"name": {"$regex": name, "$options": "i"}})
 
     if song:
-
-        await message.reply_audio(
-            song["file_id"],
-            caption=f"🎵 {song['name']}"
-        )
-
+        await message.reply_audio(song["file_id"], caption=f"🎵 {song['name']}")
         return
 
-    # ===== NOT FOUND =====
-    await message.reply_text(
-        f"😔 No result found for:\n\n{search}"
-    )
+    await message.reply_text("😔 No result found")
 
 # ================= RUN =================
 print("🚀 Bot Started")
-
 bot.run()
